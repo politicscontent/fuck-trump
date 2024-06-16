@@ -1,52 +1,65 @@
-import tweepy
-import random
+import json
 import time
+import requests
+import re
 
-API_KEY                 = 'fuck0'
-API_KEY_SECRET          = 'fuck2'
+import tweepy
+import threading
 
-ACCESS_TOKEN            = 'fuck3'
-ACCESS_TOKEN_SECRET     = 'fuck4'
-BEARER_TOKEN            = 'fuck5'
-CLIENT_SECRET           = 'fuck6'
+tclient = tweepy.Client(consumer_key            =   "9XZsu6Bc5Jhfz0c4k7VOEjV9B",
+                        consumer_secret         =   "0QoGLhFNyC1ObeQy0tdvye0FpfiZoQGaJA7jqssj76fmAjR6H3",
+                        access_token            =   "1557438727810699268-DBqQu5bQGZtQGjKRilocYPr0pjR795",
+                        access_token_secret     =   "4lW1EmiXaQJGBFpwEe1d5qcR4hp3lVYZt2ujlVrkLLzCA",
+                        bearer_token            =   "AAAAAAAAAAAAAAAAAAAAAKBntwEAAAAAYNHLPHdwPZqu42XVaRbOgasQs34%3DUQu079DmEqZfa600Sb6MuFzgxT1bte8kG4tHy9Sr8FfJoToBFg")
 
-
-def create_tweepy_bot():
-    return tweepy.Client(consumer_key=API_KEY,
-                         consumer_secret=API_KEY_SECRET,
-                         access_token=ACCESS_TOKEN,
-                         access_token_secret=ACCESS_TOKEN_SECRET,
-                         bearer_token=BEARER_TOKEN)
-
-tclient = create_tweepy_bot()
-
-auth = tweepy.OAuth1UserHandler(API_KEY, API_KEY_SECRET)
+auth = tweepy.OAuth1UserHandler("9XZsu6Bc5Jhfz0c4k7VOEjV9B", "0QoGLhFNyC1ObeQy0tdvye0FpfiZoQGaJA7jqssj76fmAjR6H3")
 auth.set_access_token(
-    ACCESS_TOKEN,
-    ACCESS_TOKEN_SECRET,
+    "1557438727810699268-DBqQu5bQGZtQGjKRilocYPr0pjR795",
+    "4lW1EmiXaQJGBFpwEe1d5qcR4hp3lVYZt2ujlVrkLLzCA"
 )
-tclientv1 = tweepy.API(auth)
+auth_client = tweepy.API(auth)
 
-def job(iterations):
+url = 'https://deepstatemap.live/api/history/'
+content = json.loads(requests.get(url=url).content.decode('utf-8'))
+latest = content[0]
+l_keys = latest.keys()
 
-    images = f'photos/{random.randint(0, 34)+1}.jpeg'
-    media = tclientv1.media_upload(filename=images)
-    media_id = media.media_id
+cache = [None]
 
-    message = {'tweet': 'any tweet here who gives a shit'}
+iterations = 0
+def job():
+    while True:
+        tweet = f'I will post this every hour until the election #{iterations} https://tenor.com/view/jpr-gif-22001827'
+        tclient.create_tweet(text=tweet)
+        iterations+=1
+        time.sleep(3600)
+
+t = threading.Thread(target=job)
+t.start()
+
+
+while True:
+    time.sleep(1)
+
     try:
-        tweet  = message['tweet']
+        descriptionUA_raw = latest['description']
+        descriptionUA = re.sub(re.compile('<.*?>'), '', descriptionUA_raw)
 
-        if len(tweet) <= 260:
-            tclient.create_tweet(text=f'{tweet} #{iterations}', media_ids=[media_id])
-            return 'success'
+        descriptionEN_raw = latest['descriptionEn']
+        descriptionEN = re.sub(re.compile('<.*?>'), '', descriptionEN_raw)
+
+        desc = f"{descriptionUA}\n {descriptionEN}\nupdated: {latest['updatedAt'].split('T')[0]}\ncreated: {latest['createdAt'].split('T')[0]}\nData from: deepstatemap.live"
+
+        if cache[-1] != desc:
+            cache.append(desc)
+
+            desc_en = f"{descriptionEN}\nupdated: {latest['updatedAt'].split('T')[0]}\ncreated: {latest['createdAt'].split('T')[0]}\nData from: deepstatemap.live"
+            desc_ua = f"{descriptionUA}\nдата оновлення: {latest['updatedAt'].split('T')[0]}\nдата створення: {latest['createdAt'].split('T')[0]}\nПдані з: deepstatemap.live"
+
+            tclient.create_tweet(text=desc_en)
+            tclient.create_tweet(text=desc_ua)
+
     except Exception as e:
         print(e)
-
-    return 'failure'
-
-i = 0
-while True:
-    job(i)
-    i += 1
-    time.sleep(15 * 60)
+    
+#tclient.create_tweet(text='fuck')
